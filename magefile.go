@@ -45,3 +45,11 @@ func Clean() {
 	fmt.Println("Cleaning...")
 	os.RemoveAll("out")
 }
+
+func Run() error {
+	mg.Deps(Build)
+	cmd := exec.Command("out/coffeebot")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
