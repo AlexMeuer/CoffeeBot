@@ -1,7 +1,7 @@
 package main
 
-import "fmt"
+import "coffeeBot/pkg/coffeebot"
 
 func main() {
-	fmt.Println("Hallo!")
+	coffeebot.Run()
 }

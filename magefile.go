@@ -19,6 +19,8 @@ func Build() error {
 	fmt.Println("Building...")
 	os.Mkdir("out", os.ModePerm)
 	cmd := exec.Command("go", "build", "-o", "out", "-v", "./...")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 	return cmd.Run()
 }
 
@@ -33,6 +35,8 @@ func Install() error {
 func InstallDeps() error {
 	fmt.Println("Installing Deps...")
 	cmd := exec.Command("go", "get", "-v", "all", "./...")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 	return cmd.Run()
 }
 
