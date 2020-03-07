@@ -55,16 +55,6 @@ func (b *bot) HandleCommand(w http.ResponseWriter, r *http.Request) {
 
 	log.Println("[Slack] Handling", p.Command, p.Text)
 	switch p.Command {
-	case "/echo":
-		if _, err := w.Write([]byte(p.Text)); err != nil {
-			log.Println("[Slack] Failed to respond to", p.Command)
-			log.Println(err)
-			w.WriteHeader(http.StatusInternalServerError)
-		}
-	case "/cof":
-		fallthrough
-	case "/covfefe":
-		fallthrough
 	case "/coffee":
 		b.handleCoffeeCommand(&p)
 	default:
@@ -104,7 +94,6 @@ func (b *bot) joinRound(id string, info api.User) (*api.CoffeeRound, error) {
 func (b *bot) handleCoffeeCommand(p *payload) {
 	args := strings.Split(p.Text, " ")
 	if len(args) < 2 || args[0] == "" || args[1] == "" {
-		log.Println("[Slack] No args")
 		err := errors.New("dialog not implemented yet. Use `/coffee {milk} {slots} [minutes]` instead")
 		b.postEphemeralError(p.ChannelId, p.UserId, p.ChannelName, p.UserName, err)
 		return
@@ -176,7 +165,7 @@ func (b *bot) buildBlocks(id string, cr *api.CoffeeRound) (blocks []slack.Block)
 	if cr.Minutes < 0 {
 		s += ".*"
 	} else {
-		s += fmt.Sprintf("in %d minutes.*", 5)
+		s += fmt.Sprintf(" in %d minutes.*", 5)
 	}
 	heading := slack.NewTextBlockObject(slack.MarkdownType, s, false, false)
 
