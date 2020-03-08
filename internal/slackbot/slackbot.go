@@ -110,6 +110,11 @@ func (b *bot) handleCoffeeCommand(p *payload) {
 		b.postEphemeralError(p.ChannelId, p.UserId, p.ChannelName, p.UserName, err)
 		return
 	}
+	if slots <= 0 {
+		msg := ":no_entry: Just making a coffee for yourself, eh? :shame: No need to rub it in. :stuck_out_tongue:"
+		b.postEphemeral(p.ChannelId, p.UserId, p.ChannelName, p.UserName, msg)
+		return
+	}
 
 	minutes := -1
 	if len(args) > 2 && args[2] != "" {
@@ -121,7 +126,11 @@ func (b *bot) handleCoffeeCommand(p *payload) {
 	}
 
 	id := uuid.New().String()
-	cr := api.NewCoffeeRound(p.UserName, milk, slots, minutes)
+	cr := api.NewCoffeeRound(api.User{
+		ID:       p.UserId,
+		Username: p.UserName,
+		Name:     p.UserName,
+	}, milk, slots, minutes)
 	b.addRound(id, cr)
 
 	if _, _, err := b.client.PostMessage(p.ChannelId, slack.MsgOptionBlocks(b.buildBlocks(id, cr)...)); err != nil {
@@ -146,6 +155,23 @@ func (b *bot) handleInteraction(w http.ResponseWriter, i *interaction) {
 			if err != nil {
 				b.postEphemeralError(i.Channel.ID, i.User.ID, i.Channel.Name, i.User.Name, err)
 			}
+
+			if round.AvailableSlots() <= 0 {
+				msg := fmt.Sprintf("@%s :information_desk_person: ", round.Creator.Username)
+				n := len(round.Joiners)
+				if n > 1 {
+					names := make([]string, len(round.Joiners))
+					for i, v := range round.Joiners {
+						names[i] = v.Name
+					}
+					msg += fmt.Sprintf("%s and %s have joined your round.", strings.Join(names[:n-1], ", "), names[n-1])
+				} else if n < 1 {
+					msg += "Nobody joined your round."
+				} else {
+					msg += fmt.Sprintf("%s is the only person to join your round.", round.Joiners[0].Name)
+				}
+				b.postEphemeral(i.Channel.ID, round.Creator.ID, i.Channel.Name, round.Creator.Name, msg)
+			}
 		}
 	default:
 		log.Println("[Slack] Unrecognised action id:", a.ActionID)
@@ -155,28 +181,41 @@ func (b *bot) handleInteraction(w http.ResponseWriter, i *interaction) {
 
 func (b *bot) postEphemeralError(channelId, userId, channelName, userName string, err error) {
 	log.Println("[Slack]", err)
-	if _, err := b.client.PostEphemeral(channelId, userId, slack.MsgOptionText(err.Error(), false)); err != nil {
+	b.postEphemeral(channelId, userId, channelName, userName, err.Error())
+}
+
+func (b *bot) postEphemeral(channelId, userId, channelName, userName string, msg string) {
+	if _, err := b.client.PostEphemeral(channelId, userId, slack.MsgOptionText(msg, false), slack.MsgOptionParse(true)); err != nil {
 		log.Println("[Slack] Failed to send message to", userName, "on", channelName, err)
 	}
 }
 
 func (b *bot) buildBlocks(id string, cr *api.CoffeeRound) (blocks []slack.Block) {
-	s := fmt.Sprintf(":coffee: *@%s is making coffee", cr.Creator)
+	headingText := fmt.Sprintf(":coffee: *@%s is making coffee", cr.Creator.Name)
 	if cr.Minutes < 0 {
-		s += ".*"
+		headingText += ".*"
 	} else {
-		s += fmt.Sprintf(" in %d minutes.*", 5)
+		headingText += fmt.Sprintf(" in %d minutes.*", 5)
 	}
-	heading := slack.NewTextBlockObject(slack.MarkdownType, s, false, false)
+	headingBlock := slack.NewTextBlockObject(slack.MarkdownType, headingText, false, false)
 
-	spaces := slack.NewTextBlockObject(slack.PlainTextType, fmt.Sprintf("There is space for %d more people.", cr.AvailableSlots()), false, false)
+	var slotsText string
+	as := cr.AvailableSlots()
+	if as > 1 {
+		slotsText = fmt.Sprintf("There is space for %d more people.", cr.AvailableSlots())
+	} else if as == 1 {
+		slotsText = "There is space of 1 more person."
+	} else {
+		slotsText = "All slots in this round have been filled!"
+	}
+	slotsBlock := slack.NewTextBlockObject(slack.PlainTextType, slotsText, false, false)
 
 	joinButton := slack.NewButtonBlockElement(ActionJoin, id, slack.NewTextBlockObject(slack.PlainTextType, string(cr.Milk), true, false))
 
 	blocks = []slack.Block{
-		slack.NewSectionBlock(heading, nil, nil),
+		slack.NewSectionBlock(headingBlock, nil, nil),
 		slack.NewDividerBlock(),
-		slack.NewSectionBlock(spaces, nil, slack.NewAccessory(joinButton)),
+		slack.NewSectionBlock(slotsBlock, nil, slack.NewAccessory(joinButton)),
 	}
 
 	if len(cr.Joiners) > 0 {

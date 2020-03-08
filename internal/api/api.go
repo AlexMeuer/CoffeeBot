@@ -18,13 +18,13 @@ type Interface interface {
 }
 
 type CoffeeRound struct {
-	Creator string
+	Creator User
 	Joiners []User
 	Milk    MilkType
 	Minutes int
 }
 
-func NewCoffeeRound(creator string, milk MilkType, slots int, minutes int) *CoffeeRound {
+func NewCoffeeRound(creator User, milk MilkType, slots int, minutes int) *CoffeeRound {
 	return &CoffeeRound{
 		Creator: creator,
 		Joiners: make([]User, 0, slots),
