@@ -1,0 +1,6 @@
+CoffeeBot:
+  Net:
+    Port: 80
+  Slack:
+    AccessToken: "ACCESS_TOKEN"
+  Discord:

@@ -1,5 +1,0 @@
-CoffeeBot:
-  Net:
-    Port: 80
-  Slack:
-    AccessToken: "xoxb-2368812114-977170937185-22pU6JAH8yprAn4EIHGX58hj"
